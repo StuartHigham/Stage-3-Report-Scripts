@@ -1,4 +1,6 @@
-def integrate_twice_live(accel, dt):
+import numpy as np
+
+def integrate(accel, dt):
     """
     Performs double integration on the fly, yielding each new displacement value.
 
@@ -27,7 +29,7 @@ def integrate_twice_live(accel, dt):
         prev_acc = acc
         prev_vel = velocity
 
-def integrate_twice_live_filtered(accel, dt, alpha=0.995):
+def HPfilter(accel, dt, alpha=0.995):
     """
     Performs double integration with high-pass filtering on displacement to reduce drift.
 
@@ -64,3 +66,40 @@ def integrate_twice_live_filtered(accel, dt, alpha=0.995):
         prev_vel = velocity
         prev_disp = displacement
         prev_filtered = filtered_displacement
+
+def kalman(accel, dt, correct_every=5):
+    """
+    Aggressive Kalman filter with frequent zero-velocity updates to minimize drift.
+    """
+    v = 0.0
+    d = 0.0
+
+    p11, p22 = 1e-4, 1e-4  # start confident
+    q11, q22 = 5e-6, 1e-6  # assume low process noise
+
+    r = 1e-4  # TRUST zero-velocity corrections more
+
+    yield 0, v, d
+
+    for i in range(1, len(accel)):
+        a = accel[i]
+
+        # Predict
+        v_pred = v + a * dt
+        d_pred = d + v * dt + 0.5 * a * dt * dt
+
+        p11 += q11
+        p22 += q22
+
+        # Aggressive ZUPT: correct every few samples
+        if i % correct_every == 0:
+            z = 0.0  # assume chest pauses
+            K = p11 / (p11 + r)
+            v = v_pred + K * (z - v_pred)
+            p11 = (1 - K) * p11
+        else:
+            v = v_pred
+
+        d = d_pred
+
+        yield i, v, d
