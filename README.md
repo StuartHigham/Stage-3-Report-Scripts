@@ -1,1 +1,1 @@
-Please ensure all csv data is kept in base directory.
+To run scripts, ensure that csv accelerometer data is kept in base directory.
